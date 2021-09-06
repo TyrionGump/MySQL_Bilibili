@@ -210,7 +210,7 @@ SELECT ROUND(1.567, 2)
 ```sql
 -- 返回 2
 SELECT CEIL(1.00000001);
--- 返回 1
+-- 返回 -1
 SELECT CEIL(-1.000000001);
 ```
 
@@ -243,7 +243,7 @@ SELECT MOD(-10, -3);
 SELECT MOD(-10, 3);
 ```
 
-### 4.1.3 日期函数
+#### 4.1.3 日期函数
 
 - NOW() 返回当前系统日期 + 时间
 - CURDATE() 返回当前系统日期
@@ -282,16 +282,194 @@ SELECT DATE_FORMAT('2018/6/6', '%Y年%m月%d日');
 | %i  | 分钟 (00, 01, ..., 59)     |
 | %s  | 秒 (00, 01, ..., 59)      |
 
-### 4.1.4 其他函数
+#### 4.1.4 其他函数
 
 - VERSION()
 - DATABASE()
 - USER()
 
-### 4.1.5 流程控制函数
+#### 4.1.5 流程控制函数
 
-- IF() 函数
+- IF(condition, result1, result2) 判断条件, 满足返回第二个参数, 否则返回第三个参数 (类似 if else)
 
 ```sql
+SELECT last_name, commission_pct, IF(commission_pct IS NULL, '???', 'rich') AS new_info
+FROM employees;
+```
 
-SELECT  
+- CASE() 函数的第一种用法 (判断某一列等于某个数不)
+- CASE 选取哪一列作为基准判断
+- WHEN [condition] THEN [operation]
+- END -> 其实这个结构就是根据某一列的情况对改列或另一列数据的输出样式进行重新设计
+
+```sql
+-- salary 和 department_id 不影响CASE里面的使用. 因此第一行的两个列名写不写不影响后面.
+SELECT salary, department_id, 
+CASE department_id
+WHEN 30 THEN salary * 1.1
+WHEN 40 THEN salary * 1.2
+WHEN 50 THEN salary * 1.3
+ELSE salary
+END AS real_salary
+FROM employees;
+```
+
+- CASE() 函数的第二种用法
+- CASE
+- WHEN [conditino] THEN [operation]
+- END -> **类似多重 if 判断**.
+
+```sql
+SELECT salary,
+CASE
+WHEN salary > 20000 THEN 'A'
+WHEN salary > 15000 THEN 'B'
+WHEN salary > 10000 THEN 'C'
+ELSE 'D'
+END AS salary_level
+FROM employees;
+```
+
+### 4.2 聚合 (分组) 函数
+
+对某一部分数据进行统计返回一个只值. **这些函数都忽略 null 值.**
+
+- SUM()
+- AVG()
+- 虽然前两个函数在非数字类型的数字类型上可以正常运行, 但是结果往往不是我们想要的
+- MAX()
+- MIN()
+- COUNT()
+
+```sql
+-- * 代表查询整个表一共有几行. 这样可以避免单独查某些存在 null 值的列而导致结果不准的情况.
+SELECT COUNT(*) FROM employees;
+
+-- 其实随便写一个常量在 count() 里都可以. 相当于添加了都等于该常量的列到表中, 然后统计该列的行数.
+SELECT COUNT(1) FROM employees;
+```
+
+和分组函数能同时一起查询的只有group by后的字段.
+
+## 5 分组查询
+
+使用 GROUP BY 将表中的数据分成若干组.
+一般语法结构如下:
+
+```sql
+-- 其中 column_1 如果存在必须出现在 group by 后面. 当然很少有不出现的情况, 不然统计出来没有意义..
+SELECT column_1, group_function(column_2)
+FROM table
+WHERE condition
+GROUP BY group_by_expression
+ORDER BY column_1;
+```
+
+### 5.1 简单案例 
+
+- 查询每个工种的最高工资
+
+```sql
+SELECT job_id, MAX(salary)
+FROM employees
+GROUP BY job_id;
+```
+
+- 查询每个位置上的部门个数
+
+```sql
+SELECT location_id, COUNT(*)
+FROM departments
+GROUP BY location_id;
+```
+
+- 查询邮箱中包含 a 字符的, 每个部门的平均工资
+
+```sql
+SELECT department_id, AVG(salary)
+FROM employees
+WHERE email LIKE '%a%'
+GROUP BY department_id;
+```
+
+- 查询每个领导手下有奖金的员工的最高工资
+
+```sql
+SELECT MAX(salary), manager_id
+FROM employees
+WHERE commission_pct IS NOT NULL
+GROUP BY manager_id;
+```
+
+- 查询哪个部门的员工个数大于2 **(分组后的筛选)**
+  
+```sql
+-- 第一种笨办法, 先统计各部门的人数然后, 再从这个中间 view 结果中提取想要的结果 (注意, 中间view要有自己的名字 e.g. stats)
+SELECT department_id
+FROM (SELECT department_id, count(*) AS employee_num
+      FROM employees
+      GROUP BY department_id) AS stats
+WHERE employee_num > 2;
+
+-- 第二种方法 HAVING 里的COUNT应该不是函数, 应该是列名叫COUNT(*)的列. 和第一行的不一样. 我感觉...
+SELECT department_id, COUNT(*)
+FROM employees
+GROUP BY department_id
+HAVING COUNT(*) > 2
+```
+
+- 查询每个工种有奖金的员工的最高工资大于12000的工种编号和最高工资
+
+```sql
+SELECT job_id, MAX(salary)
+FROM employees
+WHERE commission_pct IS NOT NULL
+GROUP BY job_id
+HAVING MAX(salary) > 12000;
+```
+
+- 查询领导编号 > 120 的每个领导手下的最低工资 > 5000 的领导编号以及其最低工资.
+
+```sql
+SELECT manager_id, MIN(salary)
+FROM employees
+WHERE manager_id > 120
+GROUP BY manager_id
+HAVING MIN(salary) > 5000;
+
+-- WHERE 放到 HAVING 好像也行 (考虑到性能, 能先用 WHERE 筛选就用 WHERE 筛选)
+SELECT manager_id, MIN(salary)
+FROM employees
+GROUP BY manager_id
+HAVING MIN(salary) > 5000 AND manager_id > 120;
+```
+
+WHERE 是分组前的筛选, HAVING 是分组后的筛选
+
+- 按员工姓名的长度分组, 查询每一组的员工个数, 筛选员工个数大于5的结果
+
+```sql
+SELECT LENGTH(last_name), COUNT(*)
+FROM employees
+GROUP BY LENGTH(last_name)
+HAVING COUNT(*) > 5;
+```
+
+- 查询每个部门每个工种的员工的平均工资 **(按多个字段分组)**
+
+```sql
+-- 注意多个字段分组用逗号连接而不是用 AND
+SELECT AVG(salary)
+FROM employees
+GROUP BY department_id, job_id;
+```
+
+- 查询每个部门每个工种的员工的平均工资, 并且按平均工资从高到低显示 **(ORDER BY 放在最后面)**
+
+```sql
+-- 注意多个字段分组用逗号连接而不是用 AND
+SELECT AVG(salary)
+FROM employees
+GROUP BY department_id, job_id
+ORDER BY AVG(salary) DESC;
+```
