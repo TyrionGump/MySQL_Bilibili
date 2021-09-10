@@ -473,3 +473,168 @@ FROM employees
 GROUP BY department_id, job_id
 ORDER BY AVG(salary) DESC;
 ```
+
+## 6 连接查询 (sql192标准)
+
+### 6.1 内连接
+
+#### 6.1.1 等值连接
+
+表 1 的每一行和表 2 的每一行一一匹配 (笛卡尔乘积), 然后根据 WHERE 一一筛选出满足条件的结果
+
+```sql
+-- 查询员工名和对应的部门名
+SELECT last_name, department_name
+FROM employees, departments
+WHERE employees.department_id = departments.department_id;
+
+-- 查询员工名和工种号和工种名 (注意查询的列如果在两个表中都存在一样的名字, 要指明是查询哪个表中的该列)
+SELECT last_name, employees.job_id, job_name
+FROM employees, jobs
+WHERE employees.job_id = jobs.job_id;
+
+-- 查询城市名中第二个字符为 o 的部门名和城市名 (WHERE 里的条件顺序不影响查询结果)
+SELECT department_name, city
+FROM departments, locations
+WHERE city LIKE '_o%' AND departments.location_id = locations.location_id;
+
+-- 查询每个城市的部门个数
+SELECT city, COUNT(*) AS department_num
+FROM locations, departments
+WHERE locations.location_id = departments.location_id
+GROUP BY city;
+
+-- 查询有奖金的每个部门的部门名和部门的领导编号和该部门的最低工资
+SELECT department_name, departments.manager_id, MIN(salary)
+FROM departments, employees
+WHERE commission_pct IS NOT NULL AND departments.department_id = employees.department_id
+GROUP BY departments.department_id;
+```
+
+#### 6.1.2 非等值连接
+
+由于后续案例需要用到一张新表和数据, **记得执行 data 文件中 job_grade 的 query 文件添加表.**
+
+```sql
+-- 查询员工的工资和工资级别
+SELECT salary, grade_level
+FROM employees, job_grades
+WHERE salary >= lowest_sal AND salary <= highest_sal;
+-- 或者
+SELECT salary, grade_level
+FROM employees, job_grades
+WHERE salary BETWEEN lowest_sal AND highest_sal;
+
+```
+
+#### 6.1.3 自连接
+
+想要找的信息都在一张表里. 此时, 一张表被查两次, 看起来像是两张表一样.
+
+```sql
+-- 查询员工名和其上级的名字
+-- 注意这里自连接两张表名会造成混淆, 没张表都应该有一个独特的名字
+-- 因此给两张表分别取别名
+-- 由于 query 语句先执行 FROM, 因此取完别名之后, 原表明就无效了, 以后对表操作就要用别名.
+SELECT e.employee_id, e.last_name, m.employee_id, m.last_name
+FROM employees AS e, employees AS m
+WHERE e.manager_id = m.employee_id;
+```
+
+## 7 连接查询 (sql199标准)
+
+### 7.1 内连接
+
+核心是 FROM [table1] INNER JOIN [table2] ON [join_condition]
+
+- INNER 可以省略
+- 筛选条件放在 WHERE, 连接条件放在 ON 后面, 提高了可读性
+- 这部分 199 和 192 结果一样, 原理也一样.
+
+#### 7.1.1 等值连接
+
+```sql
+-- 查询员工名和部门名
+SELECT last_name, department_name
+FROM employees INNER JOIN departments
+ON employees.department_id = departments.department_id;
+
+-- 查询名字中包含 e 的员工名和工种名 (添加筛选)
+SELECT last_name, job_title
+FROM employees INNER JOIN jobs ON employees.job_id = jobs.job_id
+WHERE last_name LIKE '%e%';
+
+-- 查询部门个数 > 3 的城市名和部门个数 (添加分组 + 筛选)
+SELECT city, COUNT(*) AS department_num
+FROM departments INNER JOIN locations ON departments.location_id = locations.location_id
+GROUP BY city
+HAVING department_num > 3;
+
+-- 查询哪个部门的员工个数大于3的部门名和员工个数, 并按个数降序 (添加排序)
+SELECT department_name, COUNT(*) AS employees_num
+FROM employees INNER JOIN departments ON employees.department_id = departments.department_id
+GROUP BY departments.department_id
+HAVING employees_num > 3
+ORDER BY employees_num DESC;
+
+-- 查询员工名, 部门名, 工种名, 并按部门名降序 (多表连接)
+SELECT last_name, department_name, job_title
+FROM employees
+INNER JOIN departments ON employees.department_id = departments.department_id
+INNER JOIN jobs ON employees.job_id = jobs.job_id
+ORDER BY department_name DESC;
+```
+
+#### 7.1.2 非等值连接
+
+```sql
+-- 查询员工的工资级别
+SELECT salary, grade_level
+FROM employees
+INNER JOIN job_grades
+ON salary BETWEEN lowest_sal AND highest_sal;
+```
+
+#### 7.1.3 自连接
+
+```sql
+-- 查询员工的名字及其上级的名字
+SELECT e.last_name, m.last_name
+FROM employees AS e
+INNER JOIN employees AS m
+ON e.manager_id = m.employee_id;
+```
+
+### 7.2 外连接
+
+如果从表有和主表匹配的值, 则显示匹配的值. 否则就在从表位置显示 null. 一般用于查询一个表中有, 另一个表没有的记录. 左外连接, LRFT JOIN 左边是主表. RIGHT JOIN 右边是主表.
+
+#### 7.2.1 左外连接 / 右外连接
+
+```sql
+-- 哪个部门没有员工
+SELECT departments.department_id
+FROM departments
+LEFT OUTER JOIN employees ON departments.department_id = employees.department_id
+WHERE employee_id IS NULL;
+
+SELECT departments.department_id
+FROM employees
+RIGHT OUTER JOIN departments ON departments.department_id = employees.department_id
+WHERE employee_id IS NULL;
+```
+
+#### 7.2.3 全外连接 (MySQL 不支持)
+
+全外连接 = 内连接的结果 + 表1有但表2没有的 + 表2有单表1没有的
+
+### 7.3 交叉连接
+
+就是笛卡尔乘积. 表一的每一行和表二的每一行分别连接.
+表一的 size * 表二的size = 交叉连接结果的size
+
+```sql
+SELECT *
+FROM employees
+CROSS JOIN departments;
+```
