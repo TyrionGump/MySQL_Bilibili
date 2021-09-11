@@ -1,6 +1,53 @@
 # 数据查询语言
 
-[toc]
+- [数据查询语言](#数据查询语言)
+  - [1 SELECT](#1-select)
+    - [1.1 紧跟 SELECT 的选项](#11-紧跟-select-的选项)
+    - [1.2 给选出的结果的列去另外一个名字](#12-给选出的结果的列去另外一个名字)
+    - [1.3 查询结果去重](#13-查询结果去重)
+    - [1.4 查询结果横向合并显示 (以同时显示 first_name 和 last_name 为例)](#14-查询结果横向合并显示-以同时显示-first_name-和-last_name-为例)
+  - [2 条件查询 WHERE](#2-条件查询-where)
+    - [2.1 运算符](#21-运算符)
+    - [2.2 LIKE](#22-like)
+    - [2.3 BETWEEN AND](#23-between-and)
+    - [2.4 IN](#24-in)
+    - [2.5 IS NULL](#25-is-null)
+    - [2.6 安全等于](#26-安全等于)
+  - [3 排序查询](#3-排序查询)
+  - [4 函数](#4-函数)
+    - [4.1 单行函数](#41-单行函数)
+      - [4.1.1 字符函数](#411-字符函数)
+      - [4.1.2 数学函数](#412-数学函数)
+      - [4.1.3 日期函数](#413-日期函数)
+      - [4.1.4 其他函数](#414-其他函数)
+      - [4.1.5 流程控制函数](#415-流程控制函数)
+    - [4.2 聚合 (分组) 函数](#42-聚合-分组-函数)
+  - [5 分组查询](#5-分组查询)
+    - [5.1 简单案例](#51-简单案例)
+  - [6 连接查询 (sql192标准)](#6-连接查询-sql192标准)
+    - [6.1 内连接](#61-内连接)
+      - [6.1.1 等值连接](#611-等值连接)
+      - [6.1.2 非等值连接](#612-非等值连接)
+      - [6.1.3 自连接](#613-自连接)
+  - [7 连接查询 (sql199标准)](#7-连接查询-sql199标准)
+    - [7.1 内连接](#71-内连接)
+      - [7.1.1 等值连接](#711-等值连接)
+      - [7.1.2 非等值连接](#712-非等值连接)
+      - [7.1.3 自连接](#713-自连接)
+    - [7.2 外连接](#72-外连接)
+      - [7.2.1 左外连接 / 右外连接](#721-左外连接--右外连接)
+      - [7.2.3 全外连接 (MySQL 不支持)](#723-全外连接-mysql-不支持)
+    - [7.3 交叉连接](#73-交叉连接)
+  - [7 子查询](#7-子查询)
+    - [7.1 WHERE 或 HAVING 后面](#71-where-或-having-后面)
+      - [7.1.1 标量子查询](#711-标量子查询)
+      - [7.1.2 列子查询 (多行子查询)](#712-列子查询-多行子查询)
+      - [7.1.3 行子查询](#713-行子查询)
+    - [7.2 SELECT 后面](#72-select-后面)
+    - [7.3 FROM 后面](#73-from-后面)
+    - [7.4 EXISTS()后面](#74-exists后面)
+  - [8 分页查询](#8-分页查询)
+  - [9 联合查询](#9-联合查询)
 
 ## 1 SELECT
 
@@ -76,7 +123,7 @@ SELECT * FROM employees WHERE employee_id(判断条件的列名) BETWEEN 90 AND 
 4. 不支持通配符进行模糊查询, 因为它本身是 = 判断条件的替代. 模糊查询是 LIKE 的东西
  
 ```sql
-SELECT * FROM employees WHERE job_id IN ('xxx', 'xxx', 'xxx');
+SELECT * FROM employees WHERE job_id IN('xxx', 'xxx', 'xxx');
 ```
 
 ### 2.5 IS NULL
@@ -271,16 +318,16 @@ SELECT DATE_FORMAT('2018/6/6', '%Y年%m月%d日');
 ```
 
 | 格式符 | 功能                       |
-|-----|--------------------------|
-| %Y  | 4位的年份                    |
-| %y  | 2位的年份                    |
-| %m  | 月份 (01, 02, ..., 11, 12) |
-| %c  | 月份 (1, 2, ..., 11, 12)   |
-| %d  | 日 (01, 02 ...)           |
-| %H  | 小时 (24小时制)               |
-| %h  | 小时 (12小时制)               |
-| %i  | 分钟 (00, 01, ..., 59)     |
-| %s  | 秒 (00, 01, ..., 59)      |
+| ------ | -------------------------- |
+| %Y     | 4位的年份                  |
+| %y     | 2位的年份                  |
+| %m     | 月份 (01, 02, ..., 11, 12) |
+| %c     | 月份 (1, 2, ..., 11, 12)   |
+| %d     | 日 (01, 02 ...)            |
+| %H     | 小时 (24小时制)            |
+| %h     | 小时 (12小时制)            |
+| %i     | 分钟 (00, 01, ..., 59)     |
+| %s     | 秒 (00, 01, ..., 59)       |
 
 #### 4.1.4 其他函数
 
@@ -638,3 +685,209 @@ SELECT *
 FROM employees
 CROSS JOIN departments;
 ```
+
+## 7 子查询
+
+出现在其他语句中的 SELECT 语句
+
+按子查询出现的位置分类:
+
+- SELECT 后面 -> 仅支持标量子查询
+- FROM 后面 -> 仅支持表子查询
+- WHERE 或 HAVING 后面 -> 支持标量, 列, 行子查询
+- EXISTS 后面(相关子查询) -> 支持表子查询
+
+按结果集的行列数分类:
+
+- 标量子查询(结果集为一行一列)
+- 列子查询(结果集为多行一列)
+- 行子查询(结果集为一行多列)
+- 表子查询(结果集为多行多列)
+
+### 7.1 WHERE 或 HAVING 后面
+
+#### 7.1.1 标量子查询
+
+```sql
+-- 查询谁的工资比 Abel 高
+SELECT *
+FROM employees
+WHERE salary > (
+      SELECT salary
+      FROM employees
+      WHERE last_name = 'Abel'
+);
+
+-- 查询 job_id 与 141 号员工相同, salary 比 143 号员工多的员工姓名, job_id 和 工资.
+SELECT last_name, job_id, salary
+FROM employees
+WHERE job_id = (
+      SELECT job_id
+      FROM employees
+      WHERE employee_id = 141
+) AND salary > (
+      SELECT salary
+      FROM employees
+      WHERE employee_id = 143
+);
+
+-- 返回公司工资最少的员工的 last_name, job_id 和 salary
+SELECT last_name, job_id, salary
+FROM employees
+WHERE salary = (
+      SELECT MIN(salary)
+      FROM employees
+);
+
+-- 查询最低工资大于50号部门最低工资的部门id和其最低工资
+SELECT department_id, MIN(salary)
+FROM employees
+GROUP BY department_id
+HAVING MIN(salary) > (
+      SELECT MIN(salary)
+      FROM employees
+      WHERE department_id = 50
+);
+```
+
+#### 7.1.2 列子查询 (多行子查询)
+
+多行比较操作符
+
+| 操作符    | 含义                                     |
+| --------- | ---------------------------------------- |
+| IN/NOT IN | 等于列表中的任意一个                     |
+| ANY/SOME  | 和子查询返回的某一个值比较; 类似 OR 操作 |
+| ALL       | 和子查询返回的所有值比较; 类似 AND 操作  |
+
+```sql
+-- 返回 location_id 是 1400 或 1700 的部门中的所有员工姓名
+SELECT last_name
+FROM employees
+WHERE department_id IN (
+      SELECT DISTINCT department_id
+      FROM departments
+      WHERE location_id IN (1400, 1700)
+);
+
+SELECT last_name
+FROM employees
+WHERE department_id = ANY (
+      SELECT DISTINCT department_id
+      FROM departments
+      WHERE location_id IN (1400, 1700)
+);
+
+-- 返回其他部门中比 job_id 为 'IT_PROG' 部门任一工资低的员工的: 工号, 姓名, job_id 以及 salary
+SELECT employee_id, last_name, job_id, salary
+FROM employees
+WHERE salary < ANY (
+      SELECT DISTINCT salary
+      FROM employees
+      WHERE job_id = 'IT_PROG'
+) AND job_id <> 'IT_PROG';
+
+-- 返回其他部门中比 job_id 为 'IT_PROG' 部门所有工资低的员工的: 工号, 姓名, job_id 以及 salary
+SELECT employee_id, last_name, job_id, salary
+FROM employees
+WHERE salary < ANY (
+      SELECT DISTINCT salary
+      FROM employees
+      WHERE job_id = 'IT_PROG'
+) AND job_id <> 'IT_PROG';
+```
+
+#### 7.1.3 行子查询
+
+```sql
+-- 查询员工编号最小且工资最高的员工信息
+SELECT *
+FROM employees
+WHERE (employee_id, salary) = (
+      SELECT MIN(employee_id), MAX(salary)
+      FROM employees
+);
+```
+
+### 7.2 SELECT 后面
+
+```sql
+-- 查询每个部门的员工个数 (各部门的人数是标量子查询)
+SELECT departments.*, (
+      SELECT COUNT(*)
+      FROM employees
+      WHERE employees.department_id = departments.department_id
+)
+FROM departments;
+```
+
+### 7.3 FROM 后面
+
+```sql
+-- 查询每个部门的平均工资的工资等级. 
+-- 这里面要注意FROM 后面的表必须起别名, 不然找不到表.
+-- 除此之外, 函数AVG计算结果要其别名才能在括号外面引用
+SELECT department_id, grade_level
+FROM (
+      SELECT department_id, AVG(salary) AS ag
+      FROM employees
+      GROUP BY department_id
+) AS ag_dep 
+INNER JOIN job_grades ON ag_dep.ag BETWEEN job_grades.lowest_sal AND job_grades.highest_sal;
+```
+
+### 7.4 EXISTS()后面
+
+EXISTS(完成的查询语句) -> 返回0/1告诉我们查询结果表是否存在数据
+
+```sql
+-- 查询有员工的部门名
+SELECT department_name
+FROM departments
+WHERE EXISTS(
+      SELECT *
+      FROM employees
+      WHERE departments.department_id = employees.department_id
+);
+```
+
+## 8 分页查询
+
+LIMIT offset, size
+offset: 要现实条目的起始索引 (起始索引和之前不一样, 这地方是从0开始)
+size: 要显示的条目数
+
+```sql
+-- 查询前五条员工信息 (offset是0的话可以省略)
+SELECT *
+FROM employees
+LIMIT 0, 5;
+
+SELECT *
+FROM employees
+LIMIT 5;
+
+-- 查询第11条到25条
+SELECT * 
+FROM employees
+LIMIT 10, 15;
+```
+
+## 9 联合查询
+
+UNION: 将多条查询语句的结果合并成一个结果
+我感觉就是多表的堆叠, 类似 pandas 里面的 concat
+UNION会自动去重, 想要显示全部就用 UNION ALL
+
+```sql
+-- 查询部门编号 > 90 或游戏哪个包含 a 的员工信息
+SELECT *
+FROM employees
+WHERE email LIKE '%a%' OR department_id > 90;
+
+SELECT *
+FROM employees
+WHERE email LIKE '%a%'
+UNION
+SELECT * FROM employees
+WHERE department_id > 90;
