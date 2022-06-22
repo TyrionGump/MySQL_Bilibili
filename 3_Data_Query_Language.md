@@ -93,10 +93,10 @@ SELECT CONCAT(last_name, first_name) AS full_name FROM table_xxx
 ### 2.2 LIKE
 
 1. 一般与通配符搭配使用
-2. % 代表任意多个字符, 包含0个字符
+2. % 代表任意多个字符 (不确定个数), 包含0个字符
 3. _ 代表单个字符 (用于限定第几个字符是什么)
 4. 如果想要查的东西包含通配符, 可使用 \ 进行转译
-5. 其实也可以自定义转译符号, 利用关键词 ESCAPE
+5. 其实也可以自定义转译符号, 利用关键词 ESCAPE (如果我们想查找包含 _ or % 这些符号)
 6. 也可以判断数值行
 
 ```sql
@@ -216,8 +216,12 @@ SELECT SUBSTR('1234567', '567') AS out_put;
 ```sql
 -- 返回 1234567
 SELECT TRIM('  1234567  ') AS out_put;
+-- 去除首尾的 a
 SELECT TRIM('a' FROM 'aaaaaaaaaa1234567aaaaaaaaaaa') AS out_put;
--- 
+-- 去除首部的 a
+SELECT TRIM(LEADING 'a' FROM 'aaaaa1234aaa')
+-- 去除尾部的 a
+SELECT TRIM(TRAILING 'a' FROM 'aaaaa12434aaaaa')
 ```
 
 - LPAD() 用指定的自负实现字符串的指定长度的左填充
@@ -295,7 +299,7 @@ SELECT MOD(-10, 3);
 - NOW() 返回当前系统日期 + 时间
 - CURDATE() 返回当前系统日期
 - CURTIME() 返回当前时间
-**接下来的几个函数的参数可以上上述三种函数的返回值, 也可以是字段为datetime或对应格式日期字符串**
+**接下来的几个函数的参数可以是上述三种函数的返回值, 也可以是字段为datetime或对应格式日期字符串**
 - YEAR()
 - MONTH()
 - MONTHNAME() 返回英文月份
@@ -408,7 +412,7 @@ SELECT COUNT(1) FROM employees;
 SELECT column_1, group_function(column_2)
 FROM table
 WHERE condition
-GROUP BY group_by_expression
+GROUP BY group_by_expression (WITH ROLLUP) -- 这个关键字会在输出整个表的 group_function的结果
 ORDER BY column_1;
 ```
 
@@ -871,13 +875,18 @@ LIMIT 5;
 SELECT * 
 FROM employees
 LIMIT 10, 15;
+
+-- 8.0 新特性 (显示5条数据, 从OFFSET后面开始)
+SELECT *
+FROM employees
+LIMIT 5 OFFSET 0;
 ```
 
 ## 9 联合查询
 
 UNION: 将多条查询语句的结果合并成一个结果
 我感觉就是多表的堆叠, 类似 pandas 里面的 concat
-UNION会自动去重, 想要显示全部就用 UNION ALL
+UNION会自动去重, 想要显示全部就用 UNION ALL (尽可能用 UNION ALL 相比与 UNION 少一个去重操作, 效率更高)
 
 ```sql
 -- 查询部门编号 > 90 或游戏哪个包含 a 的员工信息
