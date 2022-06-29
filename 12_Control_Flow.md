@@ -185,4 +185,38 @@ DELIMITER ;
 
 ITERATE 就是 continue
 
-## 游标
+## 8 游标
+
+```sql
+DELIMITER $
+
+CREATE PROCEDURE get_cout_by_limit_total_salary(IN limit_total_salary DOUBLE, total_count INT)
+BEGIN
+    -- 声明局部变量
+    DECLARE sum_sal DOUBLE DEFAULT 0.0; -- 记录累加的工资总额
+    DECLARE emp_sal DOUBLE; -- 记录每一个员工的工资
+    DECLARE emp_count INT DEFAULT 0; -- 记录累加的人数
+
+    -- 声明游标
+    DECLARE emp_cursor CURSOR FOR SELECT salray FROM employees ORDER BY salary DESC;
+
+    -- 打开游标
+    OPEN emp_cursor;
+
+    REPEAT
+        -- 使用游标
+        FETCH emp_cursor INTO emp_sal;
+        SET sum_sal = sum_sal + emp_sal;
+        SET emp_count = emp_count + 1;
+        UNTIL sum_sal >= limit_total_salary
+    END REPEAT;
+
+    SET total_count = emp_count;
+
+    -- 关闭游标
+    CLOSE emp_cursor;
+
+END $
+
+DELIMITER ;
+```
